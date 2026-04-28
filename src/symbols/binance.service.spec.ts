@@ -3,7 +3,11 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BinanceService, type BinanceFetcher } from './binance.service';
+import {
+  BinanceService,
+  type BinanceFetcher,
+  type BinanceInterval,
+} from './binance.service';
 
 const BASE_URL = 'https://binance.test';
 
@@ -72,6 +76,25 @@ function createExchangeInfoPayload() {
       },
     ],
   };
+}
+
+function createKlinesPayload() {
+  return [
+    [
+      1499040000000,
+      '0.01634790',
+      '0.80000000',
+      '0.01575800',
+      '0.01577100',
+      '148976.11427815',
+      1499644799999,
+      '2434.19055334',
+      308,
+      '1756.87402397',
+      '28.46694368',
+      '17928899.62484339',
+    ],
+  ];
 }
 
 describe('BinanceService', () => {
@@ -196,6 +219,102 @@ describe('BinanceService', () => {
     const service = new BinanceService(createConfigService(), fetcher);
 
     await expect(service.searchSymbols('btc')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+  });
+
+  it('fetches OHLCV candles and normalizes Binance string numbers', async () => {
+    const fetcher = jest
+      .fn<BinanceFetcher>()
+      .mockResolvedValue(createResponse(createKlinesPayload()));
+    const service = new BinanceService(createConfigService(), fetcher);
+
+    const result = await service.fetchOHLCV('BTCUSDT', '1h', 50);
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `${BASE_URL}/fapi/v1/klines?symbol=BTCUSDT&interval=1h&limit=50`,
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(result).toEqual([
+      {
+        openTime: 1499040000000,
+        open: 0.0163479,
+        high: 0.8,
+        low: 0.015758,
+        close: 0.015771,
+        volume: 148976.11427815,
+        closeTime: 1499644799999,
+      },
+    ]);
+  });
+
+  it('uses default limit 200 when fetching OHLCV', async () => {
+    const fetcher = jest
+      .fn<BinanceFetcher>()
+      .mockResolvedValue(createResponse(createKlinesPayload()));
+    const service = new BinanceService(createConfigService(), fetcher);
+
+    await service.fetchOHLCV('ETHUSDT', '5m');
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `${BASE_URL}/fapi/v1/klines?symbol=ETHUSDT&interval=5m&limit=200`,
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
+  it.each<BinanceInterval>(['5m', '15m', '1h', '4h'])(
+    'supports %s OHLCV interval',
+    async (interval) => {
+      const fetcher = jest
+        .fn<BinanceFetcher>()
+        .mockResolvedValue(createResponse(createKlinesPayload()));
+      const service = new BinanceService(createConfigService(), fetcher);
+
+      await service.fetchOHLCV('BTCUSDT', interval, 1);
+
+      expect(fetcher).toHaveBeenCalledWith(
+        `${BASE_URL}/fapi/v1/klines?symbol=BTCUSDT&interval=${interval}&limit=1`,
+        expect.objectContaining({ method: 'GET' }),
+      );
+    },
+  );
+
+  it('throws BadGatewayException when Binance OHLCV returns a non-2xx response', async () => {
+    const fetcher = jest.fn<BinanceFetcher>().mockResolvedValue(
+      createResponse(
+        { msg: 'bad request' },
+        {
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+        },
+      ),
+    );
+    const service = new BinanceService(createConfigService(), fetcher);
+
+    await expect(service.fetchOHLCV('BTCUSDT', '1h')).rejects.toBeInstanceOf(
+      BadGatewayException,
+    );
+  });
+
+  it('throws BadGatewayException when Binance OHLCV payload is invalid', async () => {
+    const fetcher = jest
+      .fn<BinanceFetcher>()
+      .mockResolvedValue(createResponse([['bad-open-time']]));
+    const service = new BinanceService(createConfigService(), fetcher);
+
+    await expect(service.fetchOHLCV('BTCUSDT', '1h')).rejects.toBeInstanceOf(
+      BadGatewayException,
+    );
+  });
+
+  it('throws ServiceUnavailableException when Binance OHLCV request fails', async () => {
+    const fetcher = jest
+      .fn<BinanceFetcher>()
+      .mockRejectedValue(new Error('network down'));
+    const service = new BinanceService(createConfigService(), fetcher);
+
+    await expect(service.fetchOHLCV('BTCUSDT', '1h')).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     );
   });

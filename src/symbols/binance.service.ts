@@ -18,6 +18,18 @@ export type BinanceSymbolSearchResult = {
   quoteAsset: string;
 };
 
+export type BinanceInterval = '5m' | '15m' | '1h' | '4h';
+
+export type Candle = {
+  openTime: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  closeTime: number;
+};
+
 type BinanceExchangeInfoSymbol = {
   symbol?: unknown;
   baseAsset?: unknown;
@@ -40,9 +52,17 @@ type BinanceTradableSymbol = {
 
 const BINANCE_FUTURES_DEFAULT_BASE_URL = 'https://fapi.binance.com';
 const BINANCE_EXCHANGE_INFO_PATH = '/fapi/v1/exchangeInfo';
+const BINANCE_KLINES_PATH = '/fapi/v1/klines';
 const SYMBOL_CACHE_TTL_MS = 10 * 60 * 1000;
+const DEFAULT_KLINES_LIMIT = 200;
 const BINANCE_FETCHER = Symbol('BINANCE_FETCHER');
 const BINANCE_NOW = Symbol('BINANCE_NOW');
+const SUPPORTED_INTERVALS: readonly BinanceInterval[] = [
+  '5m',
+  '15m',
+  '1h',
+  '4h',
+];
 
 const defaultBinanceFetcher: BinanceFetcher = (input, init) =>
   globalThis.fetch(input, init);
@@ -77,6 +97,28 @@ export class BinanceService {
     const symbols = await this.getSymbols();
 
     return symbols.filter((symbol) => symbol.symbol.includes(normalizedQuery));
+  }
+
+  async fetchOHLCV(
+    symbol: string,
+    interval: BinanceInterval,
+    limit = DEFAULT_KLINES_LIMIT,
+  ): Promise<Candle[]> {
+    if (!SUPPORTED_INTERVALS.includes(interval)) {
+      throw new BadGatewayException(`Unsupported Binance interval ${interval}`);
+    }
+
+    const response = await this.fetchBinance(
+      this.buildKlinesUrl(symbol, interval, limit),
+      'klines',
+    );
+    const payload = (await response.json()) as unknown;
+
+    if (!Array.isArray(payload)) {
+      throw new BadGatewayException('Invalid Binance klines response');
+    }
+
+    return payload.map((item) => this.normalizeKline(item));
   }
 
   private async getSymbols(): Promise<BinanceSymbolSearchResult[]> {
@@ -115,14 +157,21 @@ export class BinanceService {
   }
 
   private async fetchExchangeInfo(): Promise<Response> {
+    return this.fetchBinance(this.buildExchangeInfoUrl(), 'exchangeInfo');
+  }
+
+  private async fetchBinance(
+    url: string,
+    endpointName: string,
+  ): Promise<Response> {
     try {
-      const response = await this.fetcher(this.buildExchangeInfoUrl(), {
+      const response = await this.fetcher(url, {
         method: 'GET',
       });
 
       if (!response.ok) {
         throw new BadGatewayException(
-          `Binance exchangeInfo request failed with status ${response.status}`,
+          `Binance ${endpointName} request failed with status ${response.status}`,
         );
       }
 
@@ -137,11 +186,61 @@ export class BinanceService {
   }
 
   private buildExchangeInfoUrl(): string {
+    return `${this.getBaseUrl()}${BINANCE_EXCHANGE_INFO_PATH}`;
+  }
+
+  private buildKlinesUrl(
+    symbol: string,
+    interval: BinanceInterval,
+    limit: number,
+  ): string {
+    const url = new URL(`${this.getBaseUrl()}${BINANCE_KLINES_PATH}`);
+    url.searchParams.set('symbol', symbol.trim().toUpperCase());
+    url.searchParams.set('interval', interval);
+    url.searchParams.set('limit', String(limit));
+
+    return url.toString();
+  }
+
+  private getBaseUrl(): string {
     const baseUrl =
       this.configService.get<string>('BINANCE_FUTURES_BASE_URL') ??
       BINANCE_FUTURES_DEFAULT_BASE_URL;
 
-    return `${baseUrl.replace(/\/+$/, '')}${BINANCE_EXCHANGE_INFO_PATH}`;
+    return baseUrl.replace(/\/+$/, '');
+  }
+
+  private normalizeKline(item: unknown): Candle {
+    if (!Array.isArray(item)) {
+      throw new BadGatewayException('Invalid Binance kline item');
+    }
+
+    const candle: Candle = {
+      openTime: this.toNumber(item[0], 'openTime'),
+      open: this.toNumber(item[1], 'open'),
+      high: this.toNumber(item[2], 'high'),
+      low: this.toNumber(item[3], 'low'),
+      close: this.toNumber(item[4], 'close'),
+      volume: this.toNumber(item[5], 'volume'),
+      closeTime: this.toNumber(item[6], 'closeTime'),
+    };
+
+    return candle;
+  }
+
+  private toNumber(value: unknown, fieldName: string): number {
+    const parsedValue =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value)
+          : NaN;
+
+    if (!Number.isFinite(parsedValue)) {
+      throw new BadGatewayException(`Invalid Binance kline ${fieldName}`);
+    }
+
+    return parsedValue;
   }
 
   private isTradableUsdtPerpetual(
