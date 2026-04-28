@@ -6,8 +6,10 @@ import { AppModule } from './../src/app.module';
 
 type HealthResponse = {
   status?: unknown;
-  app?: unknown;
+  database?: unknown;
   timestamp?: unknown;
+  env?: unknown;
+  error?: unknown;
 };
 
 describe('Health (e2e)', () => {
@@ -30,7 +32,9 @@ describe('Health (e2e)', () => {
         const body = res.body as HealthResponse;
 
         expect(body.status).toBe('ok');
-        expect(body.app).toBe('crypto-signal-api');
+        expect(body.database).toBe('connected');
+        expect(body.env).toBe('test');
+        expect(body.error).toBeUndefined();
         expect(typeof body.timestamp).toBe('string');
 
         if (typeof body.timestamp !== 'string') {

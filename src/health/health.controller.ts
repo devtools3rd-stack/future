@@ -1,22 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-
-type HealthResponse = {
-  status: 'ok';
-  app: string;
-  timestamp: string;
-};
+import { HealthResponse, HealthService } from './health.service';
 
 @Controller('health')
 export class HealthController {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly healthService: HealthService) {}
 
   @Get()
-  getHealth(): HealthResponse {
-    return {
-      status: 'ok',
-      app: this.configService.get<string>('APP_NAME', 'crypto-signal-api'),
-      timestamp: new Date().toISOString(),
-    };
+  getHealth(): Promise<HealthResponse> {
+    return this.healthService.getHealth();
   }
 }
