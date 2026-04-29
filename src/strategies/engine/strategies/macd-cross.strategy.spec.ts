@@ -28,7 +28,7 @@ describe('MacdCrossStrategy', () => {
     expect(result).toBeNull();
   });
 
-  it('returns LONG when MACD crosses above signal line', () => {
+  it('returns LONG when MACD crosses above signal line with positive histogram confirmation', () => {
     const strategy = new MacdCrossStrategy();
 
     const result = strategy.run({
@@ -38,22 +38,23 @@ describe('MacdCrossStrategy', () => {
       params: { fastPeriod: 2, slowPeriod: 3, signalPeriod: 2 },
     });
 
-    expect(result).toEqual({
-      strategyKey: StrategyKey.MACD_CROSS,
-      direction: 'LONG',
-      price: 12,
-      reason: 'MACD crossed above signal line',
-      meta: {
-        fastPeriod: 2,
-        slowPeriod: 3,
-        signalPeriod: 2,
-        macd: expect.any(Number) as number,
-        signal: expect.any(Number) as number,
-      },
+    expect(result?.strategyKey).toBe(StrategyKey.MACD_CROSS);
+    expect(result?.direction).toBe('LONG');
+    expect(result?.price).toBe(12);
+    expect(result?.reason).toBe(
+      'MACD crossed above signal line with positive histogram 0.20',
+    );
+    expect(result?.meta).toMatchObject({
+      fastPeriod: 2,
+      slowPeriod: 3,
+      signalPeriod: 2,
     });
+    expect(result?.meta?.macd).toEqual(expect.any(Number));
+    expect(result?.meta?.signal).toEqual(expect.any(Number));
+    expect(result?.meta?.histogram).toBeCloseTo(0.2, 2);
   });
 
-  it('returns SHORT when MACD crosses below signal line', () => {
+  it('returns SHORT when MACD crosses below signal line with negative histogram confirmation', () => {
     const strategy = new MacdCrossStrategy();
 
     const result = strategy.run({
@@ -66,7 +67,10 @@ describe('MacdCrossStrategy', () => {
     expect(result?.strategyKey).toBe(StrategyKey.MACD_CROSS);
     expect(result?.direction).toBe('SHORT');
     expect(result?.price).toBe(8);
-    expect(result?.reason).toBe('MACD crossed below signal line');
+    expect(result?.reason).toBe(
+      'MACD crossed below signal line with negative histogram -0.20',
+    );
+    expect(result?.meta?.histogram).toBeCloseTo(-0.2, 2);
   });
 
   it('returns null when there is no MACD cross', () => {

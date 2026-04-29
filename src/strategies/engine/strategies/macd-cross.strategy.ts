@@ -43,36 +43,40 @@ export class MacdCrossStrategy implements StrategyRunner {
 
     if (
       previousValue.macd <= previousValue.signal &&
-      currentValue.macd > currentValue.signal
+      currentValue.macd > currentValue.signal &&
+      currentValue.histogram > 0
     ) {
       return this.createSignal(
         context,
         'LONG',
-        'MACD crossed above signal line',
+        `MACD crossed above signal line with positive histogram ${this.formatNumber(currentValue.histogram)}`,
         {
           fastPeriod,
           slowPeriod,
           signalPeriod,
           macd: currentValue.macd,
           signal: currentValue.signal,
+          histogram: currentValue.histogram,
         },
       );
     }
 
     if (
       previousValue.macd >= previousValue.signal &&
-      currentValue.macd < currentValue.signal
+      currentValue.macd < currentValue.signal &&
+      currentValue.histogram < 0
     ) {
       return this.createSignal(
         context,
         'SHORT',
-        'MACD crossed below signal line',
+        `MACD crossed below signal line with negative histogram ${this.formatNumber(currentValue.histogram)}`,
         {
           fastPeriod,
           slowPeriod,
           signalPeriod,
           macd: currentValue.macd,
           signal: currentValue.signal,
+          histogram: currentValue.histogram,
         },
       );
     }
@@ -93,5 +97,9 @@ export class MacdCrossStrategy implements StrategyRunner {
       reason,
       meta,
     };
+  }
+
+  private formatNumber(value: number): string {
+    return Number.isInteger(value) ? String(value) : value.toFixed(2);
   }
 }
