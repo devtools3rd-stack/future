@@ -17,8 +17,8 @@ export class EmaCrossStrategy implements StrategyRunner {
   strategyKey = StrategyKey.EMA_CROSS;
 
   run(context: StrategyContext): StrategySignal | null {
-    const fastPeriod = readNumberParam(context.params, 'fastPeriod', 12);
-    const slowPeriod = readNumberParam(context.params, 'slowPeriod', 26);
+    const fastPeriod = readNumberParam(context.params, 'fastPeriod', 9);
+    const slowPeriod = readNumberParam(context.params, 'slowPeriod', 21);
 
     if (context.candles.length < slowPeriod + 2) {
       return null;
@@ -38,7 +38,7 @@ export class EmaCrossStrategy implements StrategyRunner {
       return this.createSignal(
         context,
         'LONG',
-        'Fast EMA crossed above slow EMA',
+        `EMA ${fastPeriod} crossed above EMA ${slowPeriod}`,
         {
           fastPeriod,
           slowPeriod,
@@ -52,7 +52,7 @@ export class EmaCrossStrategy implements StrategyRunner {
       return this.createSignal(
         context,
         'SHORT',
-        'Fast EMA crossed below slow EMA',
+        `EMA ${fastPeriod} crossed below EMA ${slowPeriod}`,
         {
           fastPeriod,
           slowPeriod,

@@ -42,7 +42,7 @@ describe('EmaCrossStrategy', () => {
       strategyKey: StrategyKey.EMA_CROSS,
       direction: 'LONG',
       price: 12,
-      reason: 'Fast EMA crossed above slow EMA',
+      reason: 'EMA 2 crossed above EMA 3',
       meta: {
         fastPeriod: 2,
         slowPeriod: 3,
@@ -65,7 +65,7 @@ describe('EmaCrossStrategy', () => {
     expect(result?.strategyKey).toBe(StrategyKey.EMA_CROSS);
     expect(result?.direction).toBe('SHORT');
     expect(result?.price).toBe(8);
-    expect(result?.reason).toBe('Fast EMA crossed below slow EMA');
+    expect(result?.reason).toBe('EMA 2 crossed below EMA 3');
   });
 
   it('returns null when there is no EMA cross', () => {
@@ -75,6 +75,43 @@ describe('EmaCrossStrategy', () => {
       symbol: 'BTCUSDT',
       timeframe: '1h',
       candles: createCandles([10, 11, 12, 13, 14]),
+      params: { fastPeriod: 2, slowPeriod: 3 },
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it('uses EMA 9 and EMA 21 as default periods', () => {
+    const strategy = new EmaCrossStrategy();
+
+    const result = strategy.run({
+      symbol: 'BTCUSDT',
+      timeframe: '1h',
+      candles: createCandles([
+        100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+        100, 100, 100, 100, 100, 100, 100, 80, 130,
+      ]),
+      params: {},
+    });
+
+    expect(result?.strategyKey).toBe(StrategyKey.EMA_CROSS);
+    expect(result?.direction).toBe('LONG');
+    expect(result?.reason).toBe('EMA 9 crossed above EMA 21');
+    expect(result?.meta).toEqual(
+      expect.objectContaining({
+        fastPeriod: 9,
+        slowPeriod: 21,
+      }),
+    );
+  });
+
+  it('does not create a repeated LONG signal when fast EMA is already above slow EMA', () => {
+    const strategy = new EmaCrossStrategy();
+
+    const result = strategy.run({
+      symbol: 'BTCUSDT',
+      timeframe: '1h',
+      candles: createCandles([10, 11, 12, 13, 14, 15]),
       params: { fastPeriod: 2, slowPeriod: 3 },
     });
 
