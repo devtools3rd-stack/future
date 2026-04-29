@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { StrategyKey } from '../../strategy-config.constants';
-import { ema, getCloses, getLastClose, readNumberParam } from '../indicators';
+import {
+  calculateMACD,
+  getCloses,
+  getLastClose,
+  readNumberParam,
+} from '../indicators';
 import {
   StrategyContext,
   StrategyRunner,
@@ -21,18 +26,25 @@ export class MacdCrossStrategy implements StrategyRunner {
     }
 
     const closes = getCloses(context.candles);
-    const fastEma = ema(closes, fastPeriod);
-    const slowEma = ema(closes, slowPeriod);
-    const macdLine = closes.map((_, index) => fastEma[index] - slowEma[index]);
-    const signalLine = ema(macdLine, signalPeriod);
+    const macdValues = calculateMACD(
+      closes,
+      fastPeriod,
+      slowPeriod,
+      signalPeriod,
+    );
     const previousIndex = closes.length - 2;
     const currentIndex = closes.length - 1;
-    const previousMacd = macdLine[previousIndex];
-    const previousSignal = signalLine[previousIndex];
-    const currentMacd = macdLine[currentIndex];
-    const currentSignal = signalLine[currentIndex];
+    const previousValue = macdValues[previousIndex];
+    const currentValue = macdValues[currentIndex];
 
-    if (previousMacd <= previousSignal && currentMacd > currentSignal) {
+    if (!previousValue || !currentValue) {
+      return null;
+    }
+
+    if (
+      previousValue.macd <= previousValue.signal &&
+      currentValue.macd > currentValue.signal
+    ) {
       return this.createSignal(
         context,
         'LONG',
@@ -41,13 +53,16 @@ export class MacdCrossStrategy implements StrategyRunner {
           fastPeriod,
           slowPeriod,
           signalPeriod,
-          macd: currentMacd,
-          signal: currentSignal,
+          macd: currentValue.macd,
+          signal: currentValue.signal,
         },
       );
     }
 
-    if (previousMacd >= previousSignal && currentMacd < currentSignal) {
+    if (
+      previousValue.macd >= previousValue.signal &&
+      currentValue.macd < currentValue.signal
+    ) {
       return this.createSignal(
         context,
         'SHORT',
@@ -56,8 +71,8 @@ export class MacdCrossStrategy implements StrategyRunner {
           fastPeriod,
           slowPeriod,
           signalPeriod,
-          macd: currentMacd,
-          signal: currentSignal,
+          macd: currentValue.macd,
+          signal: currentValue.signal,
         },
       );
     }

@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { StrategyKey } from '../../strategy-config.constants';
-import { ema, getCloses, getLastClose, readNumberParam } from '../indicators';
+import {
+  calculateEMA,
+  getCloses,
+  getLastClose,
+  readNumberParam,
+} from '../indicators';
 import {
   StrategyContext,
   StrategyRunner,
@@ -20,8 +25,8 @@ export class EmaCrossStrategy implements StrategyRunner {
     }
 
     const closes = getCloses(context.candles);
-    const fastEma = ema(closes, fastPeriod);
-    const slowEma = ema(closes, slowPeriod);
+    const fastEma = calculateEMA(closes, fastPeriod);
+    const slowEma = calculateEMA(closes, slowPeriod);
     const previousIndex = closes.length - 2;
     const currentIndex = closes.length - 1;
     const previousFast = fastEma[previousIndex];

@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { StrategyKey } from '../../strategy-config.constants';
-import { getCloses, getLastClose, readNumberParam, rsi } from '../indicators';
+import {
+  calculateRSI,
+  getCloses,
+  getLastClose,
+  readNumberParam,
+} from '../indicators';
 import {
   StrategyContext,
   StrategyRunner,
@@ -20,9 +25,9 @@ export class RsiExtremeStrategy implements StrategyRunner {
       return null;
     }
 
-    const currentRsi = rsi(getCloses(context.candles), period);
+    const currentRsi = calculateRSI(getCloses(context.candles), period).at(-1);
 
-    if (currentRsi === null) {
+    if (currentRsi === undefined || currentRsi === null) {
       return null;
     }
 
