@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { WatchlistModule } from '../watchlist/watchlist.module';
 import { StrategyConfigEntity } from './entities/strategy-config.entity';
 import { StrategyRegistry } from './engine/strategy-registry';
+import { StrategyRunnerService } from './engine/strategy-runner.service';
 import { EmaCrossStrategy } from './engine/strategies/ema-cross.strategy';
 import { MacdCrossStrategy } from './engine/strategies/macd-cross.strategy';
 import { RsiExtremeStrategy } from './engine/strategies/rsi-extreme.strategy';
@@ -14,6 +15,7 @@ import { StrategyConfigService } from './strategy-config.service';
   controllers: [StrategyConfigController],
   providers: [
     StrategyConfigService,
+    StrategyRunnerService,
     EmaCrossStrategy,
     RsiExtremeStrategy,
     MacdCrossStrategy,
@@ -32,6 +34,6 @@ import { StrategyConfigService } from './strategy-config.service';
       inject: [EmaCrossStrategy, RsiExtremeStrategy, MacdCrossStrategy],
     },
   ],
-  exports: [StrategyConfigService, StrategyRegistry],
+  exports: [StrategyConfigService, StrategyRegistry, StrategyRunnerService],
 })
 export class StrategiesModule {}
