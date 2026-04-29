@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { mapRepositoryError } from '../database/repository-error';
-import { SignalEntity } from './entities/signal.entity';
+import { SignalDirection, SignalEntity } from './entities/signal.entity';
 
 export type SaveSignalInput = Pick<
   SignalEntity,
@@ -14,6 +14,13 @@ export type SaveSignalInput = Pick<
   | 'message'
   | 'metaJson'
 >;
+
+export type GetRecentSignalsInput = Partial<
+  Pick<SignalEntity, 'symbol' | 'timeframe' | 'strategyKey'>
+> & {
+  direction?: SignalDirection;
+  limit?: number;
+};
 
 @Injectable()
 export class SignalService {
@@ -32,10 +39,11 @@ export class SignalService {
     }
   }
 
-  getRecentSignals(limit = 50): Promise<SignalEntity[]> {
+  getRecentSignals(input: GetRecentSignalsInput = {}): Promise<SignalEntity[]> {
     return this.signalRepository.find({
+      where: this.buildRecentSignalsWhere(input),
       order: { createdAt: 'DESC' },
-      take: limit,
+      take: input.limit ?? 50,
     });
   }
 
@@ -52,5 +60,29 @@ export class SignalService {
       },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  private buildRecentSignalsWhere(
+    input: GetRecentSignalsInput,
+  ): FindOptionsWhere<SignalEntity> {
+    const where: FindOptionsWhere<SignalEntity> = {};
+
+    if (input.symbol) {
+      where.symbol = input.symbol;
+    }
+
+    if (input.timeframe) {
+      where.timeframe = input.timeframe;
+    }
+
+    if (input.strategyKey) {
+      where.strategyKey = input.strategyKey;
+    }
+
+    if (input.direction) {
+      where.direction = input.direction;
+    }
+
+    return where;
   }
 }

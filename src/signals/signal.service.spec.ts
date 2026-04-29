@@ -46,6 +46,32 @@ describe('SignalService', () => {
     await service.getRecentSignals();
 
     expect(repository.find).toHaveBeenCalledWith({
+      where: {},
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+  });
+
+  it('gets recent signals with optional filters', async () => {
+    const repository = createRepository();
+    const service = new SignalService(
+      repository as unknown as Repository<SignalEntity>,
+    );
+
+    await service.getRecentSignals({
+      symbol: 'BTCUSDT',
+      timeframe: '1h',
+      strategyKey: 'EMA_CROSS',
+      direction: SignalDirection.LONG,
+    });
+
+    expect(repository.find).toHaveBeenCalledWith({
+      where: {
+        symbol: 'BTCUSDT',
+        timeframe: '1h',
+        strategyKey: 'EMA_CROSS',
+        direction: SignalDirection.LONG,
+      },
       order: { createdAt: 'DESC' },
       take: 50,
     });
