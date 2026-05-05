@@ -47,4 +47,12 @@ describe('createDataSourceOptions', () => {
 
     expect(options.ssl).toEqual({ rejectUnauthorized: false });
   });
+
+  it('loads only timestamped migration files', () => {
+    const options = createDataSourceOptions();
+
+    expect(options.migrations).toEqual([
+      'src/database/migrations/[0-9]*-*.{ts,js}',
+    ]);
+  });
 });

@@ -17,7 +17,7 @@ function createSignal(overrides: Partial<SignalEntity> = {}): SignalEntity {
     id: 'signal-id',
     symbol: 'BTCUSDT',
     timeframe: '1h',
-    strategyKey: 'EMA_CROSS',
+    strategyKey: 'SMC',
     direction: SignalDirection.LONG,
     price: '100000.00000000',
     message: 'signal message',
@@ -71,12 +71,12 @@ describe('CooldownService', () => {
   it('allows sending when there is no previous signal', async () => {
     const { service, signalService } = createService();
 
-    await expect(
-      service.canSendSignal('BTCUSDT', '1h', 'EMA_CROSS'),
-    ).resolves.toBe(true);
+    await expect(service.canSendSignal('BTCUSDT', '1h', 'SMC')).resolves.toBe(
+      true,
+    );
     expect(
       signalService.getLastSignalBySymbolTimeframeStrategy,
-    ).toHaveBeenCalledWith('BTCUSDT', '1h', 'EMA_CROSS');
+    ).toHaveBeenCalledWith('BTCUSDT', '1h', 'SMC');
   });
 
   it('skips sending when the last signal is still inside cooldown', async () => {
@@ -87,9 +87,9 @@ describe('CooldownService', () => {
       }),
     });
 
-    await expect(
-      service.canSendSignal('BTCUSDT', '1h', 'EMA_CROSS'),
-    ).resolves.toBe(false);
+    await expect(service.canSendSignal('BTCUSDT', '1h', 'SMC')).resolves.toBe(
+      false,
+    );
   });
 
   it('allows sending when the last signal has passed cooldown', async () => {
@@ -100,9 +100,9 @@ describe('CooldownService', () => {
       }),
     });
 
-    await expect(
-      service.canSendSignal('BTCUSDT', '1h', 'EMA_CROSS'),
-    ).resolves.toBe(true);
+    await expect(service.canSendSignal('BTCUSDT', '1h', 'SMC')).resolves.toBe(
+      true,
+    );
   });
 
   it('uses 30 minutes as default when cooldown setting is invalid', async () => {
@@ -115,9 +115,9 @@ describe('CooldownService', () => {
       }),
     });
 
-    await expect(
-      service.canSendSignal('BTCUSDT', '1h', 'EMA_CROSS'),
-    ).resolves.toBe(false);
+    await expect(service.canSendSignal('BTCUSDT', '1h', 'SMC')).resolves.toBe(
+      false,
+    );
   });
 
   it('allows sending when default cooldown has elapsed after invalid setting', async () => {
@@ -130,8 +130,8 @@ describe('CooldownService', () => {
       }),
     });
 
-    await expect(
-      service.canSendSignal('BTCUSDT', '1h', 'EMA_CROSS'),
-    ).resolves.toBe(true);
+    await expect(service.canSendSignal('BTCUSDT', '1h', 'SMC')).resolves.toBe(
+      true,
+    );
   });
 });

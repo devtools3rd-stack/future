@@ -16,6 +16,14 @@ describe('Watchlist DTOs', () => {
     await expect(validate(dto)).resolves.toEqual([]);
   });
 
+  it('accepts one minute create timeframe', async () => {
+    const dto = new CreateWatchlistDto();
+    dto.symbol = 'BTCUSDT';
+    dto.timeframe = '1m' as WatchlistTimeframe;
+
+    await expect(validate(dto)).resolves.toEqual([]);
+  });
+
   it('rejects invalid create timeframe', async () => {
     const dto = new CreateWatchlistDto();
     dto.symbol = 'BTCUSDT';
@@ -39,7 +47,7 @@ describe('Watchlist DTOs', () => {
 
   it('accepts valid patch payload', async () => {
     const dto = new UpdateWatchlistDto();
-    dto.timeframe = WatchlistTimeframe.FIFTEEN_MINUTES;
+    dto.timeframe = '1m' as WatchlistTimeframe;
     dto.status = WatchlistStatus.NO_SIGNAL;
 
     await expect(validate(dto)).resolves.toEqual([]);

@@ -48,7 +48,7 @@ function createConfig(
   return {
     id: 'strategy-config-id',
     watchlistId: 'watchlist-id',
-    strategyKey: StrategyKey.EMA_CROSS,
+    strategyKey: StrategyKey.SMC,
     enabled: true,
     paramsJson: {},
     watchlist: createWatchItem(),
@@ -104,49 +104,63 @@ describe('StrategyRunnerService', () => {
 
   it('runs enabled strategy configs and returns only emitted signals', () => {
     const candles = createCandles([10, 11, 12]);
-    const emaSignal: StrategySignal = {
-      strategyKey: StrategyKey.EMA_CROSS,
+    const smcSignal: StrategySignal = {
+      strategyKey: StrategyKey.SMC,
       direction: 'LONG',
       price: 12,
-      reason: 'EMA signal',
+      reason: 'SMC signal',
     };
-    const ema = createRunner(StrategyKey.EMA_CROSS, emaSignal);
-    const rsi = createRunner(StrategyKey.RSI_EXTREME, null);
+    const smc = createRunner(StrategyKey.SMC, smcSignal);
+    const ict = createRunner(StrategyKey.ICT, null);
     const { service } = createService({
-      [StrategyKey.EMA_CROSS]: ema.runner,
-      [StrategyKey.RSI_EXTREME]: rsi.runner,
+      [StrategyKey.SMC]: smc.runner,
+      [StrategyKey.ICT]: ict.runner,
     });
 
     const result = service.runStrategies(createWatchItem(), candles, [
       createConfig({
-        strategyKey: StrategyKey.EMA_CROSS,
-        paramsJson: { slowPeriod: 34 },
+        strategyKey: StrategyKey.SMC,
+        paramsJson: { minDisplacementPercent: 0.5 },
       }),
       createConfig({
-        strategyKey: StrategyKey.RSI_EXTREME,
-        paramsJson: { oversold: 25 },
+        strategyKey: StrategyKey.ICT,
+        paramsJson: { killZone: 'london' },
       }),
     ]);
 
-    expect(result).toEqual([emaSignal]);
-    expect(ema.run).toHaveBeenCalledWith({
+    expect(result).toEqual([smcSignal]);
+    expect(smc.run).toHaveBeenCalledWith({
       symbol: 'BTCUSDT',
       timeframe: '1h',
       candles,
-      params: { fastPeriod: 9, slowPeriod: 34 },
+      params: {
+        swingLookback: 5,
+        liquidityLookback: 20,
+        minDisplacementPercent: 0.5,
+        minRiskReward: 2,
+        requireFairValueGap: true,
+        usePremiumDiscount: true,
+      },
     });
-    expect(rsi.run).toHaveBeenCalledWith({
+    expect(ict.run).toHaveBeenCalledWith({
       symbol: 'BTCUSDT',
       timeframe: '1h',
       candles,
-      params: { period: 14, oversold: 25, overbought: 70 },
+      params: {
+        swingLookback: 5,
+        liquidityLookback: 20,
+        minDisplacementPercent: 0.25,
+        killZone: 'london',
+        requireFairValueGap: true,
+        minRiskReward: 2,
+      },
     });
   });
 
   it('skips disabled strategy configs', () => {
-    const ema = createRunner(StrategyKey.EMA_CROSS, null);
+    const smc = createRunner(StrategyKey.SMC, null);
     const { service, registry } = createService({
-      [StrategyKey.EMA_CROSS]: ema.runner,
+      [StrategyKey.SMC]: smc.runner,
     });
 
     const result = service.runStrategies(
@@ -154,7 +168,7 @@ describe('StrategyRunnerService', () => {
       createCandles([10, 11]),
       [
         createConfig({
-          strategyKey: StrategyKey.EMA_CROSS,
+          strategyKey: StrategyKey.SMC,
           enabled: false,
         }),
       ],
@@ -162,43 +176,43 @@ describe('StrategyRunnerService', () => {
 
     expect(result).toEqual([]);
     expect(registry.get).not.toHaveBeenCalled();
-    expect(ema.run).not.toHaveBeenCalled();
+    expect(smc.run).not.toHaveBeenCalled();
   });
 
   it('continues running remaining strategies when one strategy throws', () => {
     const loggerSpy = jest
       .spyOn(Logger.prototype, 'error')
       .mockImplementation();
-    const throwingRunner = createRunner(StrategyKey.EMA_CROSS, null);
+    const throwingRunner = createRunner(StrategyKey.SMC, null);
     throwingRunner.run.mockImplementation(() => {
       throw new Error('indicator failed');
     });
-    const macdSignal: StrategySignal = {
-      strategyKey: StrategyKey.MACD_CROSS,
+    const ictSignal: StrategySignal = {
+      strategyKey: StrategyKey.ICT,
       direction: 'SHORT',
       price: 9,
-      reason: 'MACD signal',
+      reason: 'ICT signal',
     };
-    const macd = createRunner(StrategyKey.MACD_CROSS, macdSignal);
+    const ict = createRunner(StrategyKey.ICT, ictSignal);
     const { service } = createService({
-      [StrategyKey.EMA_CROSS]: throwingRunner.runner,
-      [StrategyKey.MACD_CROSS]: macd.runner,
+      [StrategyKey.SMC]: throwingRunner.runner,
+      [StrategyKey.ICT]: ict.runner,
     });
 
     const result = service.runStrategies(
       createWatchItem({ symbol: 'ETHUSDT' }),
       createCandles([11, 10, 9]),
       [
-        createConfig({ strategyKey: StrategyKey.EMA_CROSS }),
-        createConfig({ strategyKey: StrategyKey.MACD_CROSS }),
+        createConfig({ strategyKey: StrategyKey.SMC }),
+        createConfig({ strategyKey: StrategyKey.ICT }),
       ],
     );
 
-    expect(result).toEqual([macdSignal]);
-    expect(macd.run).toHaveBeenCalledTimes(1);
+    expect(result).toEqual([ictSignal]);
+    expect(ict.run).toHaveBeenCalledTimes(1);
     expect(loggerSpy).toHaveBeenCalledWith(
       expect.stringContaining(
-        'Strategy EMA_CROSS failed for ETHUSDT 1h: indicator failed',
+        'Strategy SMC failed for ETHUSDT 1h: indicator failed',
       ),
       expect.any(String),
     );
@@ -208,15 +222,15 @@ describe('StrategyRunnerService', () => {
     const loggerSpy = jest
       .spyOn(Logger.prototype, 'error')
       .mockImplementation();
-    const rsiSignal: StrategySignal = {
-      strategyKey: StrategyKey.RSI_EXTREME,
+    const ictSignal: StrategySignal = {
+      strategyKey: StrategyKey.ICT,
       direction: 'LONG',
       price: 10,
-      reason: 'RSI signal',
+      reason: 'ICT signal',
     };
-    const rsi = createRunner(StrategyKey.RSI_EXTREME, rsiSignal);
+    const ict = createRunner(StrategyKey.ICT, ictSignal);
     const { service } = createService({
-      [StrategyKey.RSI_EXTREME]: rsi.runner,
+      [StrategyKey.ICT]: ict.runner,
     });
 
     const result = service.runStrategies(
@@ -224,12 +238,12 @@ describe('StrategyRunnerService', () => {
       createCandles([9, 10]),
       [
         createConfig({ strategyKey: 'UNKNOWN' }),
-        createConfig({ strategyKey: StrategyKey.RSI_EXTREME }),
+        createConfig({ strategyKey: StrategyKey.ICT }),
       ],
     );
 
-    expect(result).toEqual([rsiSignal]);
-    expect(rsi.run).toHaveBeenCalledTimes(1);
+    expect(result).toEqual([ictSignal]);
+    expect(ict.run).toHaveBeenCalledTimes(1);
     expect(loggerSpy).toHaveBeenCalledWith(
       expect.stringContaining(
         'Strategy UNKNOWN failed for BTCUSDT 1h: Unsupported strategy UNKNOWN',
@@ -239,21 +253,28 @@ describe('StrategyRunnerService', () => {
   });
 
   it('treats missing paramsJson as an empty params override', () => {
-    const ema = createRunner(StrategyKey.EMA_CROSS, null);
+    const smc = createRunner(StrategyKey.SMC, null);
     const { service } = createService({
-      [StrategyKey.EMA_CROSS]: ema.runner,
+      [StrategyKey.SMC]: smc.runner,
     });
 
     service.runStrategies(createWatchItem(), createCandles([10, 11]), [
       createConfig({
-        strategyKey: StrategyKey.EMA_CROSS,
+        strategyKey: StrategyKey.SMC,
         paramsJson: undefined as unknown as Record<string, unknown>,
       }),
     ]);
 
-    expect(ema.run).toHaveBeenCalledWith(
+    expect(smc.run).toHaveBeenCalledWith(
       expect.objectContaining({
-        params: { fastPeriod: 9, slowPeriod: 21 },
+        params: {
+          swingLookback: 5,
+          liquidityLookback: 20,
+          minDisplacementPercent: 0.3,
+          minRiskReward: 2,
+          requireFairValueGap: true,
+          usePremiumDiscount: true,
+        },
       }),
     );
   });

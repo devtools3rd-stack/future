@@ -38,16 +38,16 @@ function createRunner(strategyKey: StrategyKey): {
 
 describe('StrategyRegistry', () => {
   it('returns a strategy by key', () => {
-    const { runner } = createRunner(StrategyKey.EMA_CROSS);
+    const { runner } = createRunner(StrategyKey.SMC);
     const registry = new StrategyRegistry([runner]);
 
-    expect(registry.get(StrategyKey.EMA_CROSS)).toBe(runner);
+    expect(registry.get(StrategyKey.SMC)).toBe(runner);
   });
 
   it('returns all registered strategies', () => {
     const runners = [
-      createRunner(StrategyKey.EMA_CROSS).runner,
-      createRunner(StrategyKey.RSI_EXTREME).runner,
+      createRunner(StrategyKey.SMC).runner,
+      createRunner(StrategyKey.ICT).runner,
     ];
     const registry = new StrategyRegistry(runners);
 
@@ -55,7 +55,7 @@ describe('StrategyRegistry', () => {
   });
 
   it('runs a strategy by key', () => {
-    const { runner, run } = createRunner(StrategyKey.MACD_CROSS);
+    const { runner, run } = createRunner(StrategyKey.ICT);
     const registry = new StrategyRegistry([runner]);
     const context: StrategyContext = {
       symbol: 'BTCUSDT',
@@ -64,14 +64,14 @@ describe('StrategyRegistry', () => {
       params: {},
     };
 
-    const result = registry.run(StrategyKey.MACD_CROSS, context);
+    const result = registry.run(StrategyKey.ICT, context);
 
     expect(run).toHaveBeenCalledWith(context);
     expect(result).toEqual({
-      strategyKey: StrategyKey.MACD_CROSS,
+      strategyKey: StrategyKey.ICT,
       direction: 'LONG',
       price: 11,
-      reason: 'MACD_CROSS signal',
+      reason: 'ICT signal',
     });
   });
 

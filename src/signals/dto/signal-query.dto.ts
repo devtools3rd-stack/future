@@ -1,4 +1,5 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { SignalDirection } from '../entities/signal.entity';
 
 export class SignalQueryDto {
@@ -17,4 +18,10 @@ export class SignalQueryDto {
   @IsOptional()
   @IsEnum(SignalDirection)
   direction?: SignalDirection;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
 }

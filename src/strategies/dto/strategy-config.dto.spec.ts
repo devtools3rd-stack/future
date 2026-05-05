@@ -34,11 +34,11 @@ describe('StrategyConfig DTOs', () => {
     await expect(
       validateParams({
         watchlistId: 'watch-id',
-        strategyKey: StrategyKey.EMA_CROSS,
+        strategyKey: StrategyKey.SMC,
       }),
     ).resolves.toEqual({
       watchlistId: 'watch-id',
-      strategyKey: StrategyKey.EMA_CROSS,
+      strategyKey: StrategyKey.SMC,
     });
   });
 

@@ -3,10 +3,12 @@ import { SignalFormatterService } from './signal-formatter.service';
 
 function createSignal(overrides: Partial<StrategySignal> = {}): StrategySignal {
   return {
-    strategyKey: 'EMA_CROSS',
+    strategyKey: 'SMC',
     direction: 'LONG',
     price: 98420,
-    reason: 'EMA 9 crossed above EMA 21',
+    stopLoss: 97200,
+    takeProfit: 100860,
+    reason: 'SMC bullish liquidity sweep with displacement confirmation',
     ...overrides,
   };
 }
@@ -35,9 +37,11 @@ describe('SignalFormatterService', () => {
       [
         '🟢 LONG — BTCUSDT PERP',
         '⏱ Timeframe: 1H',
-        '📌 Strategy: EMA Cross',
-        '📍 Price: $98,420',
-        '💡 Reason: EMA 9 crossed above EMA 21',
+        '📌 Strategy: SMC',
+        '📍 Entry: $98,420',
+        '🛑 Stop Loss: $97,200',
+        '🎯 Take Profit: $100,860',
+        '💡 Reason: SMC bullish liquidity sweep with displacement confirmation',
         '',
         '🕐 14:32 | Cooldown: 30 phút',
       ].join('\n'),
@@ -50,9 +54,9 @@ describe('SignalFormatterService', () => {
     const message = service.formatTelegramMessage({
       signal: createSignal({
         direction: 'SHORT',
-        strategyKey: 'MACD_CROSS',
+        strategyKey: 'ICT',
         price: 98420.125,
-        reason: 'MACD crossed below signal line',
+        reason: 'ICT bearish liquidity sweep inside New York kill zone',
       }),
       symbol: 'ETHUSDT',
       timeframe: '15m',
@@ -61,9 +65,13 @@ describe('SignalFormatterService', () => {
 
     expect(message).toContain('🔴 SHORT — ETHUSDT PERP');
     expect(message).toContain('⏱ Timeframe: 15M');
-    expect(message).toContain('📌 Strategy: MACD Cross');
-    expect(message).toContain('📍 Price: $98,420.125');
-    expect(message).toContain('💡 Reason: MACD crossed below signal line');
+    expect(message).toContain('📌 Strategy: ICT');
+    expect(message).toContain('📍 Entry: $98,420.125');
+    expect(message).toContain('🛑 Stop Loss: $97,200');
+    expect(message).toContain('🎯 Take Profit: $100,860');
+    expect(message).toContain(
+      '💡 Reason: ICT bearish liquidity sweep inside New York kill zone',
+    );
     expect(message).toContain('🕐 14:32 | Cooldown: 45 phút');
   });
 
@@ -96,7 +104,7 @@ describe('SignalFormatterService', () => {
       cooldownMinutes: 30,
     });
 
-    expect(wholeNumberMessage).toContain('📍 Price: $1,000,000');
-    expect(decimalMessage).toContain('📍 Price: $1,234.5');
+    expect(wholeNumberMessage).toContain('📍 Entry: $1,000,000');
+    expect(decimalMessage).toContain('📍 Entry: $1,234.5');
   });
 });

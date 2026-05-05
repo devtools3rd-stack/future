@@ -104,6 +104,8 @@ describe('crypto signal entity metadata', () => {
   it('maps Signal to signals with direction enum and query index', () => {
     const metadata = dataSource.getMetadata(SignalEntity);
     const priceColumn = metadata.findColumnWithPropertyName('price');
+    const stopLossColumn = metadata.findColumnWithPropertyName('stopLoss');
+    const takeProfitColumn = metadata.findColumnWithPropertyName('takeProfit');
     const metaColumn = metadata.findColumnWithPropertyName('metaJson');
 
     expect(metadata.tableName).toBe('signals');
@@ -115,6 +117,8 @@ describe('crypto signal entity metadata', () => {
         'strategy_key',
         'direction',
         'price',
+        'stop_loss',
+        'take_profit',
         'message',
         'meta_json',
         'created_at',
@@ -125,6 +129,12 @@ describe('crypto signal entity metadata', () => {
     );
     expect(priceColumn?.precision).toBe(18);
     expect(priceColumn?.scale).toBe(8);
+    expect(stopLossColumn?.precision).toBe(18);
+    expect(stopLossColumn?.scale).toBe(8);
+    expect(stopLossColumn?.isNullable).toBe(true);
+    expect(takeProfitColumn?.precision).toBe(18);
+    expect(takeProfitColumn?.scale).toBe(8);
+    expect(takeProfitColumn?.isNullable).toBe(true);
     expect(metaColumn?.isNullable).toBe(true);
     expect(
       indexByColumns(metadata, [

@@ -7,9 +7,11 @@ function createSignal(overrides: Partial<SignalEntity> = {}): SignalEntity {
     id: 'signal-id',
     symbol: 'BTCUSDT',
     timeframe: '1h',
-    strategyKey: 'EMA_CROSS',
+    strategyKey: 'SMC',
     direction: SignalDirection.LONG,
     price: '98420.00000000',
+    stopLoss: '97200.00000000',
+    takeProfit: '100860.00000000',
     message: 'Signal message',
     metaJson: { reason: 'test' },
     createdAt: new Date('2026-04-28T10:00:00.000Z'),
@@ -44,15 +46,17 @@ describe('SignalController', () => {
     await controller.getSignals({
       symbol: 'BTCUSDT',
       timeframe: '1h',
-      strategyKey: 'EMA_CROSS',
+      strategyKey: 'SMC',
       direction: SignalDirection.LONG,
+      limit: 50,
     });
 
     expect(signalService.getRecentSignals).toHaveBeenCalledWith({
       symbol: 'BTCUSDT',
       timeframe: '1h',
-      strategyKey: 'EMA_CROSS',
+      strategyKey: 'SMC',
       direction: SignalDirection.LONG,
+      limit: 50,
     });
   });
 });

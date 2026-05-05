@@ -6,7 +6,7 @@ describe('StrategyConfigController', () => {
   it('returns strategy configs in a data envelope', async () => {
     const configs = [
       {
-        strategyKey: StrategyKey.EMA_CROSS,
+        strategyKey: StrategyKey.SMC,
         enabled: false,
         paramsJson: {},
       },
@@ -32,9 +32,9 @@ describe('StrategyConfigController', () => {
     const config = {
       id: 'config-id',
       watchlistId: 'watch-id',
-      strategyKey: StrategyKey.MACD_CROSS,
+      strategyKey: StrategyKey.ICT,
       enabled: true,
-      paramsJson: { fast: 12 },
+      paramsJson: { killZone: 'london' },
     };
     const upsertStrategyConfig = jest.fn().mockResolvedValue(config);
     const controller = new StrategyConfigController({
@@ -44,19 +44,19 @@ describe('StrategyConfigController', () => {
     const response = await controller.upsertStrategy(
       {
         watchlistId: 'watch-id',
-        strategyKey: StrategyKey.MACD_CROSS,
+        strategyKey: StrategyKey.ICT,
       },
       {
         enabled: true,
-        paramsJson: { fast: 12 },
+        paramsJson: { killZone: 'london' },
       },
     );
 
     expect(upsertStrategyConfig).toHaveBeenCalledWith({
       watchlistId: 'watch-id',
-      strategyKey: StrategyKey.MACD_CROSS,
+      strategyKey: StrategyKey.ICT,
       enabled: true,
-      paramsJson: { fast: 12 },
+      paramsJson: { killZone: 'london' },
     });
     expect(response).toEqual({ data: config });
   });

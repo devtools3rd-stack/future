@@ -7,6 +7,8 @@ export type StrategySignal = {
   strategyKey: string;
   direction: StrategyDirection;
   price: number;
+  stopLoss?: number;
+  takeProfit?: number;
   reason: string;
   meta?: Record<string, unknown>;
 };

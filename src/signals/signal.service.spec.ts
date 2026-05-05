@@ -27,6 +27,8 @@ describe('SignalService', () => {
       strategyKey: 'rsi',
       direction: SignalDirection.LONG,
       price: '100.00000000',
+      stopLoss: '95.00000000',
+      takeProfit: '110.00000000',
       message: 'Long signal',
       metaJson: null,
     };
@@ -61,7 +63,7 @@ describe('SignalService', () => {
     await service.getRecentSignals({
       symbol: 'BTCUSDT',
       timeframe: '1h',
-      strategyKey: 'EMA_CROSS',
+      strategyKey: 'SMC',
       direction: SignalDirection.LONG,
     });
 
@@ -69,7 +71,7 @@ describe('SignalService', () => {
       where: {
         symbol: 'BTCUSDT',
         timeframe: '1h',
-        strategyKey: 'EMA_CROSS',
+        strategyKey: 'SMC',
         direction: SignalDirection.LONG,
       },
       order: { createdAt: 'DESC' },

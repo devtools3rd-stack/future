@@ -11,6 +11,8 @@ export type SaveSignalInput = Pick<
   | 'strategyKey'
   | 'direction'
   | 'price'
+  | 'stopLoss'
+  | 'takeProfit'
   | 'message'
   | 'metaJson'
 >;

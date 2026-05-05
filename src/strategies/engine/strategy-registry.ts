@@ -1,8 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { StrategyKey } from '../strategy-config.constants';
-import { EmaCrossStrategy } from './strategies/ema-cross.strategy';
-import { MacdCrossStrategy } from './strategies/macd-cross.strategy';
-import { RsiExtremeStrategy } from './strategies/rsi-extreme.strategy';
+import { IctStrategy } from './strategies/ict.strategy';
+import { SmcStrategy } from './strategies/smc.strategy';
 import {
   StrategyContext,
   StrategyRunner,
@@ -14,11 +13,7 @@ export class StrategyRegistry {
   private readonly strategiesByKey: Map<StrategyKey, StrategyRunner>;
 
   constructor(
-    strategies: StrategyRunner[] = [
-      new EmaCrossStrategy(),
-      new RsiExtremeStrategy(),
-      new MacdCrossStrategy(),
-    ],
+    strategies: StrategyRunner[] = [new SmcStrategy(), new IctStrategy()],
   ) {
     this.strategiesByKey = new Map(
       strategies.map((strategy) => [strategy.strategyKey, strategy]),

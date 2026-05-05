@@ -7,19 +7,21 @@ import { StrategyRegistry } from './strategy-registry';
 import { StrategySignal } from './strategy.types';
 
 const DEFAULT_STRATEGY_PARAMS: Record<StrategyKey, Record<string, unknown>> = {
-  [StrategyKey.EMA_CROSS]: {
-    fastPeriod: 9,
-    slowPeriod: 21,
+  [StrategyKey.SMC]: {
+    swingLookback: 5,
+    liquidityLookback: 20,
+    minDisplacementPercent: 0.3,
+    requireFairValueGap: true,
+    usePremiumDiscount: true,
+    minRiskReward: 2,
   },
-  [StrategyKey.RSI_EXTREME]: {
-    period: 14,
-    oversold: 30,
-    overbought: 70,
-  },
-  [StrategyKey.MACD_CROSS]: {
-    fastPeriod: 12,
-    slowPeriod: 26,
-    signalPeriod: 9,
+  [StrategyKey.ICT]: {
+    swingLookback: 5,
+    liquidityLookback: 20,
+    minDisplacementPercent: 0.25,
+    killZone: 'any',
+    requireFairValueGap: true,
+    minRiskReward: 2,
   },
 };
 

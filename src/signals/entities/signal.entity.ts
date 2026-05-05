@@ -41,6 +41,24 @@ export class SignalEntity {
   @Column({ type: 'numeric', precision: 18, scale: 8 })
   price!: string;
 
+  @Column({
+    name: 'stop_loss',
+    type: 'numeric',
+    precision: 18,
+    scale: 8,
+    nullable: true,
+  })
+  stopLoss!: string | null;
+
+  @Column({
+    name: 'take_profit',
+    type: 'numeric',
+    precision: 18,
+    scale: 8,
+    nullable: true,
+  })
+  takeProfit!: string | null;
+
   @Column({ type: 'text' })
   message!: string;
 

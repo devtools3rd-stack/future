@@ -36,7 +36,7 @@ export function createDataSourceOptions(
       SignalEntity,
       SettingEntity,
     ],
-    migrations: ['src/database/migrations/*{.ts,.js}'],
+    migrations: ['src/database/migrations/[0-9]*-*.{ts,js}'],
     synchronize: false,
     migrationsRun: false,
     logging: false,

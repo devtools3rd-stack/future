@@ -58,10 +58,30 @@ describe('StrategyConfigService', () => {
 
     await service.getEnabledStrategiesByWatchlistId('watch-id');
 
-    expect(repository.find).toHaveBeenCalledWith({
-      where: { watchlistId: 'watch-id', enabled: true },
-      order: { createdAt: 'DESC' },
-    });
+    const [findOptions] = repository.find?.mock.calls[0] as [
+      {
+        where: {
+          watchlistId: string;
+          enabled: boolean;
+          strategyKey: { _type: string; _value: StrategyKey[] };
+        };
+        order: { createdAt: string };
+      },
+    ];
+
+    expect(findOptions.where).toEqual(
+      expect.objectContaining({
+        watchlistId: 'watch-id',
+        enabled: true,
+      }),
+    );
+    expect(findOptions.where.strategyKey).toEqual(
+      expect.objectContaining({
+        _type: 'in',
+        _value: [StrategyKey.SMC, StrategyKey.ICT],
+      }),
+    );
+    expect(findOptions.order).toEqual({ createdAt: 'DESC' });
   });
 
   it('updates an existing strategy config during upsert', async () => {
@@ -69,7 +89,7 @@ describe('StrategyConfigService', () => {
     const existing = {
       id: 'config-id',
       watchlistId: 'watch-id',
-      strategyKey: 'rsi',
+      strategyKey: StrategyKey.SMC,
       enabled: false,
       paramsJson: {},
     } as StrategyConfigEntity;
@@ -78,15 +98,15 @@ describe('StrategyConfigService', () => {
 
     await service.upsertStrategyConfig({
       watchlistId: 'watch-id',
-      strategyKey: 'rsi',
+      strategyKey: StrategyKey.SMC,
       enabled: true,
-      paramsJson: { period: 14 },
+      paramsJson: { swingLookback: 5 },
     });
 
     expect(repository.save).toHaveBeenCalledWith({
       ...existing,
       enabled: true,
-      paramsJson: { period: 14 },
+      paramsJson: { swingLookback: 5 },
     });
   });
 
@@ -97,14 +117,14 @@ describe('StrategyConfigService', () => {
 
     await service.upsertStrategyConfig({
       watchlistId: 'watch-id',
-      strategyKey: 'rsi',
+      strategyKey: StrategyKey.SMC,
       enabled: true,
       paramsJson: {},
     });
 
     expect(repository.create).toHaveBeenCalledWith({
       watchlistId: 'watch-id',
-      strategyKey: 'rsi',
+      strategyKey: StrategyKey.SMC,
       enabled: true,
       paramsJson: {},
     });
@@ -119,7 +139,7 @@ describe('StrategyConfigService', () => {
     await expect(
       service.upsertStrategyConfig({
         watchlistId: 'watch-id',
-        strategyKey: 'rsi',
+        strategyKey: StrategyKey.SMC,
         enabled: true,
         paramsJson: {},
       }),
@@ -146,9 +166,9 @@ describe('StrategyConfigService', () => {
     const repository = createRepository();
     repository.find?.mockResolvedValue([
       {
-        strategyKey: StrategyKey.RSI_EXTREME,
+        strategyKey: StrategyKey.ICT,
         enabled: true,
-        paramsJson: { period: 14 },
+        paramsJson: { killZone: 'london' },
       },
     ]);
     const service = createService(repository);
@@ -159,11 +179,10 @@ describe('StrategyConfigService', () => {
     expect(result).toEqual([
       DEFAULT_STRATEGY_CONFIGS[0],
       {
-        strategyKey: StrategyKey.RSI_EXTREME,
+        strategyKey: StrategyKey.ICT,
         enabled: true,
-        paramsJson: { period: 14 },
+        paramsJson: { killZone: 'london' },
       },
-      DEFAULT_STRATEGY_CONFIGS[2],
     ]);
   });
 
@@ -192,7 +211,7 @@ describe('StrategyConfigService', () => {
     await expect(
       service.upsertStrategyConfig({
         watchlistId: 'missing',
-        strategyKey: StrategyKey.EMA_CROSS,
+        strategyKey: StrategyKey.SMC,
         enabled: true,
         paramsJson: {},
       }),

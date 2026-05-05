@@ -4,9 +4,8 @@ import { WatchlistModule } from '../watchlist/watchlist.module';
 import { StrategyConfigEntity } from './entities/strategy-config.entity';
 import { StrategyRegistry } from './engine/strategy-registry';
 import { StrategyRunnerService } from './engine/strategy-runner.service';
-import { EmaCrossStrategy } from './engine/strategies/ema-cross.strategy';
-import { MacdCrossStrategy } from './engine/strategies/macd-cross.strategy';
-import { RsiExtremeStrategy } from './engine/strategies/rsi-extreme.strategy';
+import { IctStrategy } from './engine/strategies/ict.strategy';
+import { SmcStrategy } from './engine/strategies/smc.strategy';
 import { StrategyConfigController } from './strategy-config.controller';
 import { StrategyConfigService } from './strategy-config.service';
 
@@ -16,22 +15,13 @@ import { StrategyConfigService } from './strategy-config.service';
   providers: [
     StrategyConfigService,
     StrategyRunnerService,
-    EmaCrossStrategy,
-    RsiExtremeStrategy,
-    MacdCrossStrategy,
+    SmcStrategy,
+    IctStrategy,
     {
       provide: StrategyRegistry,
-      useFactory: (
-        emaCrossStrategy: EmaCrossStrategy,
-        rsiExtremeStrategy: RsiExtremeStrategy,
-        macdCrossStrategy: MacdCrossStrategy,
-      ) =>
-        new StrategyRegistry([
-          emaCrossStrategy,
-          rsiExtremeStrategy,
-          macdCrossStrategy,
-        ]),
-      inject: [EmaCrossStrategy, RsiExtremeStrategy, MacdCrossStrategy],
+      useFactory: (smcStrategy: SmcStrategy, ictStrategy: IctStrategy) =>
+        new StrategyRegistry([smcStrategy, ictStrategy]),
+      inject: [SmcStrategy, IctStrategy],
     },
   ],
   exports: [StrategyConfigService, StrategyRegistry, StrategyRunnerService],

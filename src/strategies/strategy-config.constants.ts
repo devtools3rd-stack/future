@@ -1,7 +1,6 @@
 export enum StrategyKey {
-  EMA_CROSS = 'EMA_CROSS',
-  RSI_EXTREME = 'RSI_EXTREME',
-  MACD_CROSS = 'MACD_CROSS',
+  SMC = 'SMC',
+  ICT = 'ICT',
 }
 
 export type StrategyConfigView = {
@@ -12,18 +11,27 @@ export type StrategyConfigView = {
 
 export const DEFAULT_STRATEGY_CONFIGS: StrategyConfigView[] = [
   {
-    strategyKey: StrategyKey.EMA_CROSS,
+    strategyKey: StrategyKey.SMC,
     enabled: false,
-    paramsJson: {},
+    paramsJson: {
+      swingLookback: 5,
+      liquidityLookback: 20,
+      minDisplacementPercent: 0.3,
+      requireFairValueGap: true,
+      usePremiumDiscount: true,
+      minRiskReward: 2,
+    },
   },
   {
-    strategyKey: StrategyKey.RSI_EXTREME,
+    strategyKey: StrategyKey.ICT,
     enabled: false,
-    paramsJson: {},
-  },
-  {
-    strategyKey: StrategyKey.MACD_CROSS,
-    enabled: false,
-    paramsJson: {},
+    paramsJson: {
+      swingLookback: 5,
+      liquidityLookback: 20,
+      minDisplacementPercent: 0.25,
+      killZone: 'any',
+      requireFairValueGap: true,
+      minRiskReward: 2,
+    },
   },
 ];

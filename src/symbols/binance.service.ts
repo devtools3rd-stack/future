@@ -18,7 +18,7 @@ export type BinanceSymbolSearchResult = {
   quoteAsset: string;
 };
 
-export type BinanceInterval = '5m' | '15m' | '1h' | '4h';
+export type BinanceInterval = '1m' | '5m' | '15m' | '1h' | '4h';
 
 export type Candle = {
   openTime: number;
@@ -58,6 +58,7 @@ const DEFAULT_KLINES_LIMIT = 200;
 const BINANCE_FETCHER = Symbol('BINANCE_FETCHER');
 const BINANCE_NOW = Symbol('BINANCE_NOW');
 const SUPPORTED_INTERVALS: readonly BinanceInterval[] = [
+  '1m',
   '5m',
   '15m',
   '1h',

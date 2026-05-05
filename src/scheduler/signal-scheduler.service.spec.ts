@@ -51,7 +51,7 @@ function createStrategyConfig(
   return {
     id: 'strategy-config-id',
     watchlistId: 'watchlist-id',
-    strategyKey: 'EMA_CROSS',
+    strategyKey: 'SMC',
     enabled: true,
     paramsJson: {},
     watchlist: createWatchItem(),
@@ -63,11 +63,13 @@ function createStrategyConfig(
 
 function createSignal(overrides: Partial<StrategySignal> = {}): StrategySignal {
   return {
-    strategyKey: 'EMA_CROSS',
+    strategyKey: 'SMC',
     direction: 'LONG',
     price: 98420,
-    reason: 'EMA 9 crossed above EMA 21',
-    meta: { fastPeriod: 9, slowPeriod: 21 },
+    stopLoss: 97200,
+    takeProfit: 100860,
+    reason: 'SMC bullish liquidity sweep with displacement confirmation',
+    meta: { liquiditySweep: 'sell-side', fairValueGap: true },
     ...overrides,
   };
 }
@@ -165,9 +167,12 @@ function createService(
 }
 
 describe('SignalSchedulerService', () => {
+  let logSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-04-28T08:00:00.000Z'));
+    logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
     jest.spyOn(Logger.prototype, 'error').mockImplementation();
   });
 
@@ -176,9 +181,52 @@ describe('SignalSchedulerService', () => {
     jest.useRealTimers();
   });
 
+  it('logs scheduler startup and cron ticks for operational visibility', async () => {
+    const { service } = createService();
+
+    (
+      service as unknown as {
+        onModuleInit: () => void;
+      }
+    ).onModuleInit();
+    await service.handleCron();
+
+    expect(logSpy).toHaveBeenCalledWith(
+      'Signal scheduler active: checking closed candles every minute.',
+    );
+    expect(logSpy).toHaveBeenCalledWith(
+      'Signal scheduler tick: loaded 0 watch item(s).',
+    );
+  });
+
+  it('logs each watch item check and no-signal result', async () => {
+    const watchItem = createWatchItem({
+      timeframe: WatchlistTimeframe.ONE_MINUTE,
+    });
+    const { service } = createService({
+      watchlist: [watchItem],
+      signals: [],
+    });
+
+    await service.handleCron();
+
+    expect(logSpy).toHaveBeenCalledWith(
+      'Checking BTCUSDT 1m with 1 closed candle(s) from 1 fetched candle(s) and 1 enabled strategy config(s).',
+    );
+    expect(logSpy).toHaveBeenCalledWith(
+      'BTCUSDT 1m checked: no signal detected.',
+    );
+  });
+
   it('detects candle close time by timeframe using UTC clock', () => {
     const { service } = createService();
 
+    expect(
+      service.isCandleCloseTime(
+        '1m' as WatchlistTimeframe,
+        new Date('2026-04-28T08:01:00.000Z'),
+      ),
+    ).toBe(true);
     expect(
       service.isCandleCloseTime(
         WatchlistTimeframe.FIVE_MINUTES,
@@ -223,7 +271,50 @@ describe('SignalSchedulerService', () => {
     expect(watchlistService.updateStatus).not.toHaveBeenCalled();
   });
 
-  it('runs the full signal flow and updates SIGNAL_SENT when telegram succeeds', async () => {
+  it('processes one minute watchlist items every minute', async () => {
+    jest.setSystemTime(new Date('2026-04-28T08:01:00.000Z'));
+    const { service, binanceService } = createService({
+      watchlist: [createWatchItem({ timeframe: '1m' as WatchlistTimeframe })],
+    });
+
+    await service.handleCron();
+
+    expect(binanceService.fetchOHLCV).toHaveBeenCalledWith(
+      'BTCUSDT',
+      '1m',
+      200,
+    );
+  });
+
+  it('runs strategies only with candles closed by the scheduler time', async () => {
+    const closedCandle = {
+      ...createCandle(98420),
+      closeTime: new Date('2026-04-28T07:59:59.999Z').getTime(),
+    };
+    const currentCandle = {
+      ...createCandle(98425),
+      closeTime: new Date('2026-04-28T08:00:59.999Z').getTime(),
+    };
+    const watchItem = createWatchItem({
+      timeframe: WatchlistTimeframe.ONE_MINUTE,
+    });
+    const config = createStrategyConfig();
+    const { service, strategyRunnerService } = createService({
+      watchlist: [watchItem],
+      candles: [closedCandle, currentCandle],
+      configs: [config],
+    });
+
+    await service.handleCron();
+
+    expect(strategyRunnerService.runStrategies).toHaveBeenCalledWith(
+      watchItem,
+      [closedCandle],
+      [config],
+    );
+  });
+
+  it('saves detected signals and updates SIGNAL_SENT without sending Telegram', async () => {
     const signal = createSignal();
     const watchItem = createWatchItem();
     const config = createStrategyConfig();
@@ -262,7 +353,7 @@ describe('SignalSchedulerService', () => {
     expect(cooldownService.canSendSignal).toHaveBeenCalledWith(
       'BTCUSDT',
       '1h',
-      'EMA_CROSS',
+      'SMC',
     );
     expect(settingsService.getAppSettings).toHaveBeenCalled();
     expect(signalFormatterService.formatTelegramMessage).toHaveBeenCalledWith({
@@ -271,15 +362,15 @@ describe('SignalSchedulerService', () => {
       timeframe: '1h',
       cooldownMinutes: 30,
     });
-    expect(telegramService.sendMessage).toHaveBeenCalledWith(
-      'formatted message',
-    );
+    expect(telegramService.sendMessage).not.toHaveBeenCalled();
     expect(signalService.saveSignal).toHaveBeenCalledWith({
       symbol: 'BTCUSDT',
       timeframe: '1h',
-      strategyKey: 'EMA_CROSS',
+      strategyKey: 'SMC',
       direction: 'LONG',
       price: '98420',
+      stopLoss: '97200',
+      takeProfit: '100860',
       message: 'formatted message',
       metaJson: signal.meta,
     });
@@ -341,20 +432,22 @@ describe('SignalSchedulerService', () => {
     );
   });
 
-  it('updates TELEGRAM_ERROR when Telegram send fails', async () => {
+  it('ignores Telegram send failures while Telegram delivery is disabled', async () => {
     const watchItem = createWatchItem();
-    const { service, signalService, watchlistService } = createService({
-      watchlist: [watchItem],
-      signals: [createSignal()],
-      sendMessage: jest.fn().mockRejectedValue(new Error('Telegram failed')),
-    });
+    const { service, signalService, telegramService, watchlistService } =
+      createService({
+        watchlist: [watchItem],
+        signals: [createSignal()],
+        sendMessage: jest.fn().mockRejectedValue(new Error('Telegram failed')),
+      });
 
     await service.handleCron();
 
-    expect(signalService.saveSignal).not.toHaveBeenCalled();
+    expect(telegramService.sendMessage).not.toHaveBeenCalled();
+    expect(signalService.saveSignal).toHaveBeenCalled();
     expect(watchlistService.updateStatus).toHaveBeenCalledWith(
       watchItem.id,
-      WatchlistStatus.TELEGRAM_ERROR,
+      WatchlistStatus.SIGNAL_SENT,
     );
   });
 

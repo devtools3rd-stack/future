@@ -9,9 +9,8 @@ export type FormatTelegramSignalInput = {
 };
 
 const STRATEGY_NAMES: Record<string, string> = {
-  EMA_CROSS: 'EMA Cross',
-  RSI_EXTREME: 'RSI Extreme',
-  MACD_CROSS: 'MACD Cross',
+  SMC: 'SMC',
+  ICT: 'ICT',
 };
 
 @Injectable()
@@ -23,7 +22,8 @@ export class SignalFormatterService {
       `${directionIcon} ${input.signal.direction} — ${input.symbol} PERP`,
       `⏱ Timeframe: ${this.formatTimeframe(input.timeframe)}`,
       `📌 Strategy: ${this.formatStrategyName(input.signal.strategyKey)}`,
-      `📍 Price: ${this.formatPrice(input.signal.price)}`,
+      `📍 Entry: ${this.formatPrice(input.signal.price)}`,
+      ...this.formatRiskLines(input.signal),
       `💡 Reason: ${input.signal.reason}`,
       '',
       `🕐 ${this.formatLocalTime(new Date())} | Cooldown: ${input.cooldownMinutes} phút`,
@@ -34,6 +34,20 @@ export class SignalFormatterService {
     return `$${new Intl.NumberFormat('en-US', {
       maximumFractionDigits: 8,
     }).format(price)}`;
+  }
+
+  private formatRiskLines(signal: StrategySignal): string[] {
+    const lines: string[] = [];
+
+    if (typeof signal.stopLoss === 'number') {
+      lines.push(`🛑 Stop Loss: ${this.formatPrice(signal.stopLoss)}`);
+    }
+
+    if (typeof signal.takeProfit === 'number') {
+      lines.push(`🎯 Take Profit: ${this.formatPrice(signal.takeProfit)}`);
+    }
+
+    return lines;
   }
 
   private formatTimeframe(timeframe: string): string {

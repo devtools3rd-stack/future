@@ -262,7 +262,7 @@ describe('BinanceService', () => {
     );
   });
 
-  it.each<BinanceInterval>(['5m', '15m', '1h', '4h'])(
+  it.each<BinanceInterval>(['1m', '5m', '15m', '1h', '4h'])(
     'supports %s OHLCV interval',
     async (interval) => {
       const fetcher = jest

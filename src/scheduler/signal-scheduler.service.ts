@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SettingsService } from '../settings/settings.service';
 import { CooldownService } from '../signals/cooldown.service';
 import { SignalDirection } from '../signals/entities/signal.entity';
 import { SignalFormatterService } from '../signals/signal-formatter.service';
 import { SignalService } from '../signals/signal.service';
-import { BinanceService } from '../symbols/binance.service';
+import { BinanceService, Candle } from '../symbols/binance.service';
 import { StrategyRunnerService } from '../strategies/engine/strategy-runner.service';
 import { StrategySignal } from '../strategies/engine/strategy.types';
 import { StrategyConfigService } from '../strategies/strategy-config.service';
@@ -20,7 +20,7 @@ import { WatchlistService } from '../watchlist/watchlist.service';
 const DEFAULT_CANDLE_LIMIT = 200;
 
 @Injectable()
-export class SignalSchedulerService {
+export class SignalSchedulerService implements OnModuleInit {
   private readonly logger = new Logger(SignalSchedulerService.name);
 
   constructor(
@@ -35,18 +35,28 @@ export class SignalSchedulerService {
     private readonly settingsService: SettingsService,
   ) {}
 
+  onModuleInit(): void {
+    this.logger.log(
+      'Signal scheduler active: checking closed candles every minute.',
+    );
+  }
+
   @Cron(CronExpression.EVERY_MINUTE)
   async handleCron(): Promise<void> {
     try {
       const watchlist = await this.watchlistService.getWatchlist();
       const now = new Date();
 
+      this.logger.log(
+        `Signal scheduler tick: loaded ${watchlist.length} watch item(s).`,
+      );
+
       for (const watchItem of watchlist) {
         if (!this.isCandleCloseTime(watchItem.timeframe, now)) {
           continue;
         }
 
-        await this.processWatchItem(watchItem);
+        await this.processWatchItem(watchItem, now);
       }
     } catch (error) {
       this.logger.error(
@@ -61,6 +71,8 @@ export class SignalSchedulerService {
     const hour = date.getUTCHours();
 
     switch (timeframe) {
+      case WatchlistTimeframe.ONE_MINUTE:
+        return true;
       case WatchlistTimeframe.FIVE_MINUTES:
         return minute % 5 === 0;
       case WatchlistTimeframe.FIFTEEN_MINUTES:
@@ -74,7 +86,10 @@ export class SignalSchedulerService {
     }
   }
 
-  private async processWatchItem(watchItem: WatchlistEntity): Promise<void> {
+  private async processWatchItem(
+    watchItem: WatchlistEntity,
+    schedulerTime: Date,
+  ): Promise<void> {
     let signals: StrategySignal[];
 
     try {
@@ -83,14 +98,19 @@ export class SignalSchedulerService {
         watchItem.timeframe,
         DEFAULT_CANDLE_LIMIT,
       );
+      const closedCandles = this.getClosedCandles(candles, schedulerTime);
       const configs =
         await this.strategyConfigService.getEnabledStrategiesByWatchlistId(
           watchItem.id,
         );
 
+      this.logger.log(
+        `Checking ${watchItem.symbol} ${watchItem.timeframe} with ${closedCandles.length} closed candle(s) from ${candles.length} fetched candle(s) and ${configs.length} enabled strategy config(s).`,
+      );
+
       signals = this.strategyRunnerService.runStrategies(
         watchItem,
-        candles,
+        closedCandles,
         configs,
       );
     } catch (error) {
@@ -101,6 +121,9 @@ export class SignalSchedulerService {
 
     if (signals.length === 0) {
       await this.updateStatus(watchItem, WatchlistStatus.NO_SIGNAL);
+      this.logger.log(
+        `${watchItem.symbol} ${watchItem.timeframe} checked: no signal detected.`,
+      );
       return;
     }
 
@@ -125,20 +148,14 @@ export class SignalSchedulerService {
         cooldownMinutes: settings.cooldown_minutes,
       });
 
-      try {
-        await this.telegramService.sendMessage(message);
-      } catch (error) {
-        await this.updateStatus(watchItem, WatchlistStatus.TELEGRAM_ERROR);
-        this.logWatchItemError(watchItem, 'telegram send', error);
-        return;
-      }
-
       await this.signalService.saveSignal({
         symbol: watchItem.symbol,
         timeframe: watchItem.timeframe,
         strategyKey: signal.strategyKey,
         direction: signal.direction as SignalDirection,
         price: String(signal.price),
+        stopLoss: this.formatOptionalPrice(signal.stopLoss),
+        takeProfit: this.formatOptionalPrice(signal.takeProfit),
         message,
         metaJson: signal.meta ?? null,
       });
@@ -149,6 +166,9 @@ export class SignalSchedulerService {
       watchItem,
       sentSignals > 0 ? WatchlistStatus.SIGNAL_SENT : WatchlistStatus.NO_SIGNAL,
     );
+    this.logger.log(
+      `${watchItem.symbol} ${watchItem.timeframe} checked: ${sentSignals} signal(s) saved, ${signals.length - sentSignals} skipped by cooldown.`,
+    );
   }
 
   private updateStatus(
@@ -156,6 +176,12 @@ export class SignalSchedulerService {
     status: WatchlistStatus,
   ): Promise<WatchlistEntity> {
     return this.watchlistService.updateStatus(watchItem.id, status);
+  }
+
+  private getClosedCandles(candles: Candle[], schedulerTime: Date): Candle[] {
+    const schedulerTimeMs = schedulerTime.getTime();
+
+    return candles.filter((candle) => candle.closeTime <= schedulerTimeMs);
   }
 
   private logWatchItemError(
@@ -171,5 +197,9 @@ export class SignalSchedulerService {
 
   private readErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+  }
+
+  private formatOptionalPrice(price: number | undefined): string | null {
+    return price === undefined ? null : String(price);
   }
 }

@@ -1,5 +1,7 @@
 import { QueryRunner } from 'typeorm';
 import { CreateCryptoSignalTables1777351200000 } from './1777351200000-CreateCryptoSignalTables';
+import { AddOneMinuteWatchlistTimeframe1777440000000 } from './1777440000000-AddOneMinuteWatchlistTimeframe';
+import { AddSignalRiskLevels1777526400000 } from './1777526400000-AddSignalRiskLevels';
 
 function createQueryRunnerMock(): QueryRunner {
   return {
@@ -51,5 +53,65 @@ describe('CreateCryptoSignalTables1777351200000', () => {
     expect(sql).toContain('DROP TYPE "signal_direction_enum"');
     expect(sql).toContain('DROP TYPE "watchlist_status_enum"');
     expect(sql).toContain('DROP TYPE "watchlist_timeframe_enum"');
+  });
+});
+
+describe('AddSignalRiskLevels1777526400000', () => {
+  it('adds stop loss and take profit columns to signals', async () => {
+    const migration = new AddSignalRiskLevels1777526400000();
+    const queryRunner = createQueryRunnerMock();
+
+    await migration.up(queryRunner);
+
+    const sql = queriesOf(queryRunner).join('\n');
+
+    expect(sql).toContain(
+      `ALTER TABLE "signals" ADD "stop_loss" numeric(18,8)`,
+    );
+    expect(sql).toContain(
+      `ALTER TABLE "signals" ADD "take_profit" numeric(18,8)`,
+    );
+  });
+
+  it('drops stop loss and take profit columns from signals on rollback', async () => {
+    const migration = new AddSignalRiskLevels1777526400000();
+    const queryRunner = createQueryRunnerMock();
+
+    await migration.down(queryRunner);
+
+    const sql = queriesOf(queryRunner).join('\n');
+
+    expect(sql).toContain(`ALTER TABLE "signals" DROP COLUMN "take_profit"`);
+    expect(sql).toContain(`ALTER TABLE "signals" DROP COLUMN "stop_loss"`);
+  });
+});
+
+describe('AddOneMinuteWatchlistTimeframe1777440000000', () => {
+  it('adds the 1m watchlist timeframe enum value', async () => {
+    const migration = new AddOneMinuteWatchlistTimeframe1777440000000();
+    const queryRunner = createQueryRunnerMock();
+
+    await migration.up(queryRunner);
+
+    const sql = queriesOf(queryRunner).join('\n');
+
+    expect(sql).toContain(
+      `ALTER TYPE "watchlist_timeframe_enum" ADD VALUE IF NOT EXISTS '1m'`,
+    );
+  });
+
+  it('removes 1m from the watchlist timeframe enum on rollback', async () => {
+    const migration = new AddOneMinuteWatchlistTimeframe1777440000000();
+    const queryRunner = createQueryRunnerMock();
+
+    await migration.down(queryRunner);
+
+    const sql = queriesOf(queryRunner).join('\n');
+
+    expect(sql).toContain(`UPDATE "watchlist" SET "timeframe" = '5m'`);
+    expect(sql).toContain(
+      `CREATE TYPE "watchlist_timeframe_enum" AS ENUM ('5m', '15m', '1h', '4h')`,
+    );
+    expect(sql).toContain(`DROP TYPE "watchlist_timeframe_enum_old"`);
   });
 });

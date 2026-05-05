@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { mapRepositoryError } from '../database/repository-error';
 import { WatchlistService } from '../watchlist/watchlist.service';
 import { StrategyConfigEntity } from './entities/strategy-config.entity';
@@ -60,7 +60,11 @@ export class StrategyConfigService {
     watchlistId: string,
   ): Promise<StrategyConfigEntity[]> {
     return this.strategyConfigRepository.find({
-      where: { watchlistId, enabled: true },
+      where: {
+        watchlistId,
+        enabled: true,
+        strategyKey: In(Object.values(StrategyKey)),
+      },
       order: { createdAt: 'DESC' },
     });
   }
